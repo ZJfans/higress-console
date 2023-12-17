@@ -60,9 +60,13 @@ public class TlsCertificatesController {
 
     @PostMapping
     public ResponseEntity<Response<TlsCertificate>> add(@RequestBody TlsCertificate certificate) {
-        TlsCertificate newCertificate = tlsCertificateService.add(certificate);
-        stripSensitiveInfo(newCertificate);
-        return ControllerUtil.buildResponseEntity(newCertificate);
+        if(tlsCertificateService.validate(certificate)){
+            TlsCertificate newCertificate = tlsCertificateService.add(certificate);
+            stripSensitiveInfo(newCertificate);
+            return ControllerUtil.buildResponseEntity(newCertificate);
+        }else {
+            throw new ValidationException("Certificate and private key do not match");
+        }
     }
 
     @GetMapping(value = "/{name}")

@@ -26,5 +26,7 @@ public interface TlsCertificateService {
 
     TlsCertificate update(TlsCertificate certificate);
 
+    boolean validate(TlsCertificate certificate);
+
     void delete(String name);
 }
