@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev_002
+      - dev_003
 
 
 env:
@@ -57,5 +57,5 @@ jobs:
           context: ./backend
           file: backend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: zjfans/higress_console:2.1.1
+          tags: zjfans/higress_console:3.1.0
           platforms: linux/amd64

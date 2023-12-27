@@ -35,10 +35,6 @@ import io.kubernetes.client.openapi.models.V1Secret;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.Arrays;
-import javax.crypto.Cipher;
-
-import java.io.ByteArrayInputStream;
 import java.security.cert.CertificateFactory;
 import java.security.KeyFactory;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -47,7 +43,19 @@ import java.security.cert.X509Certificate;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import java.io.InputStreamReader;
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import javax.crypto.Cipher;
+import java.io.FileInputStream;
+import java.security.cert.CertPath;
+import java.security.cert.CertPathValidator;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.CertPathParameters;
+import java.security.cert.CertPathValidatorResult;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
+import java.util.Collections;
 
 
 @Service
@@ -70,6 +78,33 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
         cipher.init(Cipher.DECRYPT_MODE, privateKey);
         return cipher.doFinal(encryptedData);
     }
+    private static X509Certificate getCertificateFromPem(String certificate) throws Exception {
+        try (PemReader pemReader = new PemReader(new InputStreamReader(new ByteArrayInputStream(certificate.getBytes(StandardCharsets.UTF_8))))){
+            PemObject pemObject = pemReader.readPemObject();
+            byte[] certBytes = pemObject.getContent();
+            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+            X509Certificate certificateObj = (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(certBytes));
+            return certificateObj;
+        }
+    }
+    private static boolean validateCertificateChain(CertificateFactory certificate) throws Exception {
+        try {
+            CertPath certPathObject = CertificateFactory.getInstance("X.509").generateCertPath(Collections.singletonList(certificate));
+            CertPathValidator certPathValidator = CertPathValidator.getInstance("PKIX");
+            TrustAnchor trustAnchor = new TrustAnchor(certificate, null);
+            PKIXParameters params = new PKIXParameters(Collections.singleton(trustAnchor));
+            params.setRevocationEnabled(false);
+            CertPathParameters certPathParameters = params;
+            CertPathValidatorResult result = certPathValidator.validate(certPathObject, certPathParameters);
+            return result;
+        } catch (CertPathValidatorException cpve) {
+            return false;
+            cpve.printStackTrace();
+        } catch (Exception e) {
+            return false;
+            e.printStackTrace();
+        }
+    }
     private static PrivateKey getPrivateKeyFromPem(String privateKeyPem) throws Exception {
         try (PemReader pemReader = new PemReader(new InputStreamReader(new ByteArrayInputStream(privateKeyPem.getBytes(StandardCharsets.UTF_8))))){
             PemObject pemObject = pemReader.readPemObject();
@@ -77,17 +112,6 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(decodedPrivateKeyBytes);
             return keyFactory.generatePrivate(keySpec);
-        }
-
-    }
-
-    private static PublicKey getPublicKeyFromPem(String certificate) throws Exception {
-        try (PemReader pemReader = new PemReader(new InputStreamReader(new ByteArrayInputStream(certificate.getBytes(StandardCharsets.UTF_8))))){
-            PemObject pemObject = pemReader.readPemObject();
-            byte[] certBytes = pemObject.getContent();
-            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
-            X509Certificate certificateObj = (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(certBytes));
-            return certificateObj.getPublicKey();
         }
     }
 
@@ -178,7 +202,11 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
         try {
             String certificate = tlsCertificate.getCert();
             String privateKey = tlsCertificate.getKey();
-            PublicKey publicKey = getPublicKeyFromPem(certificate);
+            X509Certificate certificateObj = getCertificateFromPem(certificate);
+            if(validateCertificateChain(certificateObj) != true){
+                return false;
+            }
+            PublicKey publicKey = certificateObj.getPublicKey();
             PrivateKey privateKeyObj = getPrivateKeyFromPem(privateKey);
             byte[] testData = generateRandomData(16);
             byte[] encryptedData = encrypt(publicKey, testData);
