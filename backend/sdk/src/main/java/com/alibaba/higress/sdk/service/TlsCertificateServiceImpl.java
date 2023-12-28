@@ -47,7 +47,6 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import javax.crypto.Cipher;
-import java.io.FileInputStream;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
@@ -55,7 +54,6 @@ import java.security.cert.CertPathParameters;
 import java.security.cert.CertPathValidatorResult;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
-import java.util.Collections;
 
 
 @Service
@@ -203,7 +201,7 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             String certificate = tlsCertificate.getCert();
             String privateKey = tlsCertificate.getKey();
             X509Certificate certificateObj = getCertificateFromPem(certificate);
-            if(validateCertificateChain(certificateObj) != true){
+            if(!validateCertificateChain(certificateObj)){
                 return false;
             }
             PublicKey publicKey = certificateObj.getPublicKey();
