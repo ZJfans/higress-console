@@ -98,10 +98,8 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             CertPathValidatorResult result = certPathValidator.validate(certPathObject, certPathParameters);
             return true;
         } catch (CertPathValidatorException cpve) {
-            return false;
             cpve.printStackTrace();
         } catch (Exception e) {
-            return false;
             e.printStackTrace();
         }
     }
