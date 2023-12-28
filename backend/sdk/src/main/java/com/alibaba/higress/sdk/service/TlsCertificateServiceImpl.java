@@ -87,7 +87,7 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             return certificateObj;
         }
     }
-    private static boolean validateCertificateChain(CertificateFactory certificate) throws Exception {
+    private static boolean validateCertificateChain(X509Certificate certificate) throws Exception {
         try {
             CertPath certPathObject = CertificateFactory.getInstance("X.509").generateCertPath(Collections.singletonList(certificate));
             CertPathValidator certPathValidator = CertPathValidator.getInstance("PKIX");
@@ -96,7 +96,7 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             params.setRevocationEnabled(false);
             CertPathParameters certPathParameters = params;
             CertPathValidatorResult result = certPathValidator.validate(certPathObject, certPathParameters);
-            return result;
+            return true;
         } catch (CertPathValidatorException cpve) {
             return false;
             cpve.printStackTrace();
