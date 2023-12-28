@@ -99,8 +99,10 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             return true;
         } catch (CertPathValidatorException cpve) {
             cpve.printStackTrace();
+            return false;
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
     private static PrivateKey getPrivateKeyFromPem(String privateKeyPem) throws Exception {
