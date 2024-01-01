@@ -12,12 +12,19 @@
  */
 package com.alibaba.higress.sdk.service;
 
+import java.io.InputStreamReader;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
+import java.util.Arrays;
 
 import javax.annotation.Resource;
+import javax.crypto.Cipher;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -33,11 +40,56 @@ import com.alibaba.higress.sdk.service.kubernetes.KubernetesModelConverter;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.V1Secret;
 
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+
 @Service
 public class TlsCertificateServiceImpl implements TlsCertificateService {
 
     private KubernetesClientService kubernetesClientService;
     private KubernetesModelConverter kubernetesModelConverter;
+
+    private byte[] generateRandomData(int length) {
+        byte[] data = new byte[length];
+        new java.util.Random().nextBytes(data);
+        return data;
+    }
+
+    private byte[] encrypt(PublicKey publicKey, byte[] data) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return cipher.doFinal(data);
+    }
+
+    private byte[] decrypt(PrivateKey privateKey, byte[] encryptedData) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        return cipher.doFinal(encryptedData);
+    }
+
+    private static X509Certificate getCertificateFromPem(String certificate) throws Exception {
+        try (PemReader pemReader = new PemReader(new InputStreamReader(new ByteArrayInputStream(certificate.getBytes(StandardCharsets.UTF_8))))){
+            PemObject pemObject = pemReader.readPemObject();
+            byte[] certBytes = pemObject.getContent();
+            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+            X509Certificate certificateObj = (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(certBytes));
+            return certificateObj;
+        }
+    }
+
+    private static PrivateKey getPrivateKeyFromPem(String privateKeyPem) throws Exception {
+        try (PemReader pemReader = new PemReader(new InputStreamReader(new ByteArrayInputStream(privateKeyPem.getBytes(StandardCharsets.UTF_8))))){
+            PemObject pemObject = pemReader.readPemObject();
+            byte[] decodedPrivateKeyBytes = pemObject.getContent();
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(decodedPrivateKeyBytes);
+            return keyFactory.generatePrivate(keySpec);
+        }
+    }
 
     @Resource
     public void setKubernetesClientService(KubernetesClientService kubernetesClientService) {
@@ -118,6 +170,27 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             kubernetesClientService.deleteSecret(name);
         } catch (ApiException e) {
             throw new BusinessException("Error occurs when deleting secret with name: " + name, e);
+        }
+    }
+
+    @Override
+    public boolean validate(TlsCertificate tlsCertificate) {
+        try {
+            String certificate = tlsCertificate.getCert();
+            String privateKeyObj = tlsCertificate.getKey();
+            X509Certificate certificateObj = getCertificateFromPem(certificate);
+            PublicKey publicKey = certificateObj.getPublicKey();
+            PrivateKey privateKey = getPrivateKeyFromPem(privateKeyObj);
+            byte[] testData = generateRandomData(16);
+            byte[] encryptedData = encrypt(publicKey, testData);
+            byte[] decryptedData = decrypt(privateKey, encryptedData);
+            return Arrays.equals(testData, decryptedData);
+        } catch (java.security.NoSuchAlgorithmException | java.security.spec.InvalidKeySpecException e) {
+            e.printStackTrace();
+            throw new BusinessException("Certificate and private key do not match", e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new BusinessException("Certificate and private key do not match", e);
         }
     }
 }
