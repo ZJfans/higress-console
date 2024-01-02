@@ -60,13 +60,12 @@ public class TlsCertificatesController {
 
     @PostMapping
     public ResponseEntity<Response<TlsCertificate>> add(@RequestBody TlsCertificate certificate) {
-        if(tlsCertificateService.validate(certificate)){
-            TlsCertificate newCertificate = tlsCertificateService.add(certificate);
-            stripSensitiveInfo(newCertificate);
-            return ControllerUtil.buildResponseEntity(newCertificate);
-        }else {
-            throw new ValidationException("Certificate and private key do not match");
+        if (!tlsCertificateService.validate(certificate)) {
+            throw new ValidationException("Certificate and private key do not match");   
         }
+        TlsCertificate newCertificate = tlsCertificateService.add(certificate);
+        stripSensitiveInfo(newCertificate);
+        return ControllerUtil.buildResponseEntity(newCertificate);
     }
 
     @GetMapping(value = "/{name}")
@@ -84,13 +83,12 @@ public class TlsCertificatesController {
         } else if (!StringUtils.equals(certificateName, certificate.getName())) {
             throw new ValidationException("TlsCertificate name in the URL doesn't match the one in the body.");
         }
-        if(tlsCertificateService.validate(certificate)){
-            TlsCertificate updatedCertificate = tlsCertificateService.update(certificate);
-            stripSensitiveInfo(updatedCertificate);
-            return ControllerUtil.buildResponseEntity(updatedCertificate);
-        }else {
-            throw new ValidationException("Certificate and private key do not match");
+        if (!tlsCertificateService.validate(certificate)) {
+            throw new ValidationException("Certificate and private key do not match");   
         }
+        TlsCertificate updatedCertificate = tlsCertificateService.update(certificate);
+        stripSensitiveInfo(updatedCertificate);
+        return ControllerUtil.buildResponseEntity(updatedCertificate);
     }
 
     @DeleteMapping("/{name}")
