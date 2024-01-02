@@ -84,9 +84,13 @@ public class TlsCertificatesController {
         } else if (!StringUtils.equals(certificateName, certificate.getName())) {
             throw new ValidationException("TlsCertificate name in the URL doesn't match the one in the body.");
         }
-        TlsCertificate updatedCertificate = tlsCertificateService.update(certificate);
-        stripSensitiveInfo(updatedCertificate);
-        return ControllerUtil.buildResponseEntity(updatedCertificate);
+        if(tlsCertificateService.validate(certificate)){
+            TlsCertificate updatedCertificate = tlsCertificateService.update(certificate);
+            stripSensitiveInfo(updatedCertificate);
+            return ControllerUtil.buildResponseEntity(updatedCertificate);
+        }else {
+            throw new ValidationException("Certificate and private key do not match");
+        }
     }
 
     @DeleteMapping("/{name}")

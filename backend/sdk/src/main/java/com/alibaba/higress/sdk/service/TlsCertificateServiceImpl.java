@@ -185,12 +185,9 @@ public class TlsCertificateServiceImpl implements TlsCertificateService {
             byte[] encryptedData = encrypt(publicKey, testData);
             byte[] decryptedData = decrypt(privateKey, encryptedData);
             return Arrays.equals(testData, decryptedData);
-        } catch (java.security.NoSuchAlgorithmException | java.security.spec.InvalidKeySpecException e) {
-            e.printStackTrace();
-            throw new BusinessException("Certificate and private key do not match", e);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new BusinessException("Certificate and private key do not match", e);
+        } catch (java.security.InvalidKeyException | java.security.NoSuchAlgorithmException | java.security.spec.InvalidKeySpecException e) {
+            throw new BusinessException("Error occurs when validate Certificate and private key with name: "
+                + tlsCertificate.getName(), e);
         }
     }
 }

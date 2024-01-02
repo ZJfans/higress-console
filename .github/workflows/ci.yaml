@@ -57,5 +57,5 @@ jobs:
           context: ./backend
           file: backend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: zjfans/higress_console:4.1.0
+          tags: zjfans/higress_console:4.1.1
           platforms: linux/amd64
